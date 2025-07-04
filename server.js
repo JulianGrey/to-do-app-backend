@@ -15,11 +15,11 @@ app.use(cors({
 app.get('/api/todos', (req, res) => {
   const todos = [
     {
-      category: 'Event',
       description: 'To Do Description',
       title: 'To Do Title',
     },
     {
+      description: '',
       title: 'To Do Title 2',
     },
     {
