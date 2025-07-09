@@ -5,7 +5,7 @@ const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const allowedOrigins = ['http://localhost:5173'];
+const allowedOrigins = process.env.ALLOWED_ORIGINS.split();
 
 const pool = new Pool({
   user: process.env.PGUSER,
@@ -44,7 +44,7 @@ app.post('/api/todos/add', async (req, res) => {
   }
 
   try {
-    // Hard code user_id until user system is created
+    // TODO: Create user system to replace hardcoded user_id
     const result = await pool.query(
       'INSERT INTO todos (title, description, user_id) VALUES ($1, $2, $3) RETURNING *',
       [title, description, 1]
