@@ -1,24 +1,19 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const allowedOrigins = ['http://localhost:5173'];
 
-const todos = [
-  {
-    description: 'To Do Description',
-    title: 'To Do Title',
-  },
-  {
-    description: '',
-    title: 'To Do Title 2',
-  },
-  {
-    description: 'To Do Description 3',
-    title: 'To Do Title 3',
-  },
-];
+const pool = new Pool({
+  user: process.env.PGUSER,
+  host: process.env.PGHOST,
+  database: process.env.PGDATABASE,
+  password: process.env.PGPASSWORD,
+  port: process.env.PGPORT,
+});
 
 app.use(express.json());
 app.use(cors({
@@ -27,22 +22,38 @@ app.use(cors({
   maxAge: 10,
 }));
 
-app.get('/api/todos', (req, res) => {
-
-  res.json(todos);
+app.get('/api/todos', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM todos');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Database error: ', err);
+    res.status(500).json({ error: 'Database error' });
+  }
 });
 
-app.post('/api/todos/add', (req, res) => {
-  const { description, title } = req.body;
+app.post('/api/todos/add', async (req, res) => {
+  const { title, description } = req.body;
 
-  if (!title) {
-    return res.status(400).json({ error: 'Title is required' });
+  if (!title || typeof title !== 'string' || title.length > 40) {
+    return res.status(400).json({ error: 'Valid title is required (max 40 chars)' });
   }
 
-  const newTodo = { description: description || '', title };
-  todos.push(newTodo);
+  if (description && typeof description !== 'string') {
+    return res.status(400).json({ error: 'Description must be a string' });
+  }
 
-  res.status(201).json(newTodo);
+  try {
+    // Hard code user_id until user system is created
+    const result = await pool.query(
+      'INSERT INTO todos (title, description, user_id) VALUES ($1, $2, $3) RETURNING *;',
+      [title, description, 1]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Database error: ', err);
+    res.status(500).json({ error: 'Database error' });
+  }
 });
 
 app.listen(PORT, () => {
