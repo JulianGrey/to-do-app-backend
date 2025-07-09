@@ -24,7 +24,7 @@ app.use(cors({
 
 app.get('/api/todos', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM todos');
+    const result = await pool.query('SELECT * FROM todos ORDER BY id ASC');
     res.json(result.rows);
   } catch (err) {
     console.error('Database error:', err);
@@ -66,6 +66,26 @@ app.delete('/api/todos/:id', async (req, res) => {
       return res.status(404).json({ error: 'Todo not found' });
     }
     res.json({ message: 'Todo deleted', todo: result.rows[0] });
+  } catch (err) {
+    console.error('Database error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.put('/api/todos/:id', async (req, res) => {
+  const { id } = req.params;
+  const { title, description } = req.body;
+
+  try {
+    const result = await pool.query(
+      'UPDATE todos SET title = $1, description = $2 WHERE id = $3 RETURNING *;',
+      [title, description, id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Todo not found' });
+    }
+    res.json({ message: 'Todo updated', todo: result.rows[0] });
   } catch (err) {
     console.error('Database error:', err);
     res.status(500).json({ error: 'Database error' });
