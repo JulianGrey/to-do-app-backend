@@ -65,7 +65,7 @@ app.delete('/api/todos/:id', async (req, res) => {
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Todo not found' });
     }
-    res.json({ message: 'Todo deleted', toDo: result.rows[0] });
+    res.json({ message: 'Todo deleted', todo: result.rows[0] });
   } catch (err) {
     console.error('Database error:', err);
     res.status(500).json({ error: 'Database error' });
