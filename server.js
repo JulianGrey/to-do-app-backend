@@ -46,7 +46,7 @@ app.post('/api/todos/add', async (req, res) => {
   try {
     // Hard code user_id until user system is created
     const result = await pool.query(
-      'INSERT INTO todos (title, description, user_id) VALUES ($1, $2, $3) RETURNING *;',
+      'INSERT INTO todos (title, description, user_id) VALUES ($1, $2, $3) RETURNING *',
       [title, description, 1]
     );
     res.status(201).json(result.rows[0]);
@@ -60,7 +60,7 @@ app.delete('/api/todos/:id', async (req, res) => {
   const { id } = req.params;
 
   try {
-    const result = await pool.query('DELETE FROM todos WHERE id = $1 RETURNING *;', [id]);
+    const result = await pool.query('DELETE FROM todos WHERE id = $1 RETURNING *', [id]);
 
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Todo not found' });
@@ -78,7 +78,7 @@ app.put('/api/todos/:id', async (req, res) => {
 
   try {
     const result = await pool.query(
-      'UPDATE todos SET title = $1, description = $2 WHERE id = $3 RETURNING *;',
+      'UPDATE todos SET title = $1, description = $2 WHERE id = $3 RETURNING *',
       [title, description, id]
     );
 
