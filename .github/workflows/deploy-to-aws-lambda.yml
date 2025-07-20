@@ -36,6 +36,7 @@ jobs:
 
       - name: Install dependencies and create deployment package
         run: |
+          npm install pnpm
           pnpm install --frozen-lockfile
           zip -r deployment.zip . -x ".git/*" ".github/*" "README.md" ".gitignore" "logs/" ".env*"
 
