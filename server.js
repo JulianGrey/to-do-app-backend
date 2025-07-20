@@ -35,7 +35,7 @@ app.use(cors({
   maxAge: 10,
 }));
 
-app.get('/api/todos', async (req, res) => {
+app.get('/api/to-do', async (req, res) => {
   try {
     const result = await docClient.send(new ScanCommand({ TableName: tableName }));
     const sortedByTime = result.Items.sort((a, b) => a.createdAt - b.createdAt);
@@ -46,7 +46,7 @@ app.get('/api/todos', async (req, res) => {
   }
 });
 
-app.post('/api/todos/add', async (req, res) => {
+app.post('/api/to-do/add', async (req, res) => {
   const { title, description } = req.body;
 
   if (!title || typeof title !== 'string' || title.length > 40) {
@@ -71,7 +71,7 @@ app.post('/api/todos/add', async (req, res) => {
   }
 });
 
-app.delete('/api/todos/:id', async (req, res) => {
+app.delete('/api/to-do/:id', async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -87,7 +87,7 @@ app.delete('/api/todos/:id', async (req, res) => {
   }
 });
 
-app.put('/api/todos/:id', async (req, res) => {
+app.put('/api/to-do/:id', async (req, res) => {
   const { id } = req.params;
   const { title, description } = req.body;
 
