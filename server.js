@@ -1,21 +1,34 @@
 require('dotenv').config();
 const express = require('express');
+const serverless = require('serverless-http');
+const rateLimit = require('express-rate-limit');
 const cors = require('cors');
-const { Pool } = require('pg');
+const { v4: uuidv4 } = require('uuid');
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const {
+  DynamoDBDocumentClient,
+  ScanCommand,
+  PutCommand,
+  DeleteCommand,
+  UpdateCommand,
+} = require('@aws-sdk/lib-dynamodb');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const allowedOrigins = process.env.ALLOWED_ORIGINS.split();
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',');
 
-const pool = new Pool({
-  user: process.env.PGUSER,
-  host: process.env.PGHOST,
-  database: process.env.PGDATABASE,
-  password: process.env.PGPASSWORD,
-  port: process.env.PGPORT,
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false
 });
 
+const ddbClient = new DynamoDBClient({ region: process.env.AWS_REGION });
+const docClient = DynamoDBDocumentClient.from(ddbClient);
+const tableName = process.env.TABLE_NAME;
+
 app.use(express.json());
+app.use(limiter);
 app.use(cors({
   origin: allowedOrigins,
   optionsSuccessStatus: 200,
@@ -24,8 +37,9 @@ app.use(cors({
 
 app.get('/api/todos', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM todos ORDER BY id ASC');
-    res.json(result.rows);
+    const result = await docClient.send(new ScanCommand({ TableName: tableName }));
+    const sortedByTime = result.Items.sort((a, b) => a.createdAt - b.createdAt);
+    res.json(sortedByTime);
   } catch (err) {
     console.error('Database error:', err);
     res.status(500).json({ error: 'Database error' });
@@ -43,13 +57,14 @@ app.post('/api/todos/add', async (req, res) => {
     return res.status(400).json({ error: 'Description must be a string' });
   }
 
+  const id = uuidv4();
+  const createdAt = Date.now();
   try {
-    // TODO: Create user system to replace hardcoded user_id
-    const result = await pool.query(
-      'INSERT INTO todos (title, description, user_id) VALUES ($1, $2, $3) RETURNING *',
-      [title, description, 1]
-    );
-    res.status(201).json(result.rows[0]);
+    await docClient.send(new PutCommand({
+      TableName: tableName,
+      Item: { id, title, description, createdAt }
+    }));
+    res.status(201).json({ id, title, description, createdAt });
   } catch (err) {
     console.error('Database error:', err);
     res.status(500).json({ error: 'Database error' });
@@ -60,12 +75,12 @@ app.delete('/api/todos/:id', async (req, res) => {
   const { id } = req.params;
 
   try {
-    const result = await pool.query('DELETE FROM todos WHERE id = $1 RETURNING *', [id]);
+    const result = await docClient.send(new DeleteCommand({
+      TableName: tableName,
+      Key: { id }
+    }));
 
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Todo not found' });
-    }
-    res.json({ message: 'Todo deleted', todo: result.rows[0] });
+    res.json({ message: 'Todo deleted', todo: result.Attributes });
   } catch (err) {
     console.error('Database error:', err);
     res.status(500).json({ error: 'Database error' });
@@ -77,21 +92,22 @@ app.put('/api/todos/:id', async (req, res) => {
   const { title, description } = req.body;
 
   try {
-    const result = await pool.query(
-      'UPDATE todos SET title = $1, description = $2 WHERE id = $3 RETURNING *',
-      [title, description, id]
-    );
+    const result = await docClient.send(new UpdateCommand({
+      TableName: tableName,
+      Key: { id },
+      UpdateExpression: 'set title = :t, description = :d',
+      ExpressionAttributeValues: {
+        ':t': title,
+        ':d': description
+      },
+      ReturnValues: 'ALL_NEW'
+    }));
 
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Todo not found' });
-    }
-    res.json({ message: 'Todo updated', todo: result.rows[0] });
+    res.json({ message: 'Todo updated', todo: result.Attributes });
   } catch (err) {
     console.error('Database error:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+module.exports.handler = serverless(app);
