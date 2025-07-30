@@ -1,5 +1,5 @@
 # To Do App Backend
 
-The backend of a small To Do App project, acting as a bit of a playground for me to expand my knowledge into backend, ultimately growing as a full-stack developer.
+The backend is hosted on AWS Lambda to act as the middleman between the AWS Amplify frontend and the DynamoDB database.
 
-This contains the APIs which will control the functionality of the frontend, separating the responsibility of the two systems. This will eventually be tied to a database to hold all the information regarding any added to dos, enabling the ability to view, add, edit and delete entries.
+The deployment of the service is handled by a CI/CD process through GitHub Actions, triggered by an upload to the main branch but can also be triggered manually.
